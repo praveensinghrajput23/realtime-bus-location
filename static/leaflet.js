@@ -5,7 +5,24 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
 
+// Define colored icons
+var redIcon = L.AwesomeMarkers.icon({
+    icon: 'bus',
+    prefix: 'fa',
+    markerColor: 'red'
+});
 
+var blueIcon = L.AwesomeMarkers.icon({
+    icon: 'bus',
+    prefix: 'fa',
+    markerColor: 'blue'
+});
+
+var greenIcon = L.AwesomeMarkers.icon({
+    icon: 'bus',
+    prefix: 'fa',
+    markerColor: 'green'
+});
 
 mapMarkers1 = [];
 mapMarkers2 = [];
@@ -22,7 +39,7 @@ source.addEventListener('message', function(e){
     for (var i = 0; i < mapMarkers1.length; i++) {
       map.removeLayer(mapMarkers1[i]);
     }
-    marker1 = L.marker([obj.latitude, obj.longitude]).addTo(map);
+    marker1 = L.marker([obj.latitude, obj.longitude],{ icon: redIcon }).addTo(map).bindTooltip("Bus No: " + obj.busline, { permanent: false, direction: "top" });
     mapMarkers1.push(marker1);
   }
 
