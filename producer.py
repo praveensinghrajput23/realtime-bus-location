@@ -1,16 +1,10 @@
-# Kafka Consumer
-
 import json
+import threading
 import time
 import uuid
 from datetime import UTC, datetime
 
 from kafka import KafkaProducer
-
-input_file = open("bus-geodata.json")
-json_geodata = json.load(input_file)
-
-coordinates = json_geodata["features"][0]["geometry"]["coordinates"]
 
 
 def generate_uuid():
@@ -23,31 +17,45 @@ producer = KafkaProducer(
 )
 
 
-# construct message and sent it to kafka
-data = {}
-data["busline"] = "0001"
+def load_coordinates(file_path: str):
+    with open(file_path) as f:
+        geo_data = json.load(f)
+    return geo_data["features"][0]["geometry"]["coordinates"]
 
 
-def generate_checkpoints(coordinates: list):
+def produce_bus_data(busline: str, coordinates: list):
     i = 0
+    data = {"busline": busline}
 
-    while i < len(coordinates):
-        data["key"] = data["busline"] + "_" + str(generate_uuid())
+    while True:
+        data["key"] = f"{busline}_{generate_uuid()}"
         data["timestamp"] = str(datetime.now(UTC))
         data["longitude"] = coordinates[i][0]
         data["latitude"] = coordinates[i][1]
+
         message = json.dumps(data)
+        print(f"[{busline}] ->", message)
 
-        print(message)
-
-        producer.send(topic="bus-coordinates", value=message.encode("utf-8"))
-        if (
-            i == len(coordinates) - 1
-        ):  # start from starting coordinates if bus reaches the destination
-            i = 0
-        i += 1
+        producer.send("bus-coordinates", value=message.encode("utf-8"))
+        i = (i + 1) % len(coordinates)
         time.sleep(1)
-    producer.flush()
 
 
-generate_checkpoints(coordinates=coordinates)
+# Define buses with their files and buslines
+bus_configs = [
+    ("0001", "./geo-data/bus-geodata.json"),
+    ("0002", "./geo-data/bus1-geodata.json"),
+    ("0003", "./geo-data/bus2-geodata.json"),
+]
+
+# Launch each bus on a separate thread
+threads = []
+for busline, file_path in bus_configs:
+    coords = load_coordinates(file_path)
+    t = threading.Thread(target=produce_bus_data, args=(busline, coords), daemon=True)
+    threads.append(t)
+    t.start()
+
+# Keep main thread alive
+for t in threads:
+    t.join()
